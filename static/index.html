@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>美股 Top100 历史报表</title>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<style>
+  /* ---- Claude 风格 ---- */
+  :root{
+    --bg:#f4f3ee; --card:#ffffff; --card2:#faf9f5;
+    --ink:#262624; --sub:#6f6e69; --faint:#9b9a93;
+    --acc:#d97757; --acc-h:#c46548; --acc-soft:#f6e4dc;
+    --line:#e8e7e0; --up:#c62828; --down:#2e7d32;
+    --shadow:0 1px 2px rgba(0,0,0,.04),0 8px 24px rgba(0,0,0,.05);
+    --radius:14px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--ink);
+       font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+       height:100vh;display:flex;flex-direction:column}
+  .serif{font-family:Georgia,"Times New Roman",serif}
+
+  /* Header */
+  header{padding:16px 22px;background:var(--card);border-bottom:1px solid var(--line);
+         display:flex;align-items:center;gap:20px;flex-wrap:wrap;box-shadow:var(--shadow)}
+  .brand{display:flex;align-items:center;gap:12px}
+  .logo-mark{width:38px;height:38px;border-radius:10px;background:linear-gradient(135deg,#d97757,#c46548);
+             display:flex;align-items:center;justify-content:center;color:#fff;font-size:19px;font-weight:700}
+  .brand h1{font-size:19px;font-weight:600;letter-spacing:-.01em}
+  .brand h1 small{display:block;font-size:11px;font-weight:400;color:var(--sub)}
+  .idxbar{display:flex;gap:8px;flex-wrap:wrap;margin-left:auto}
+  .idx{padding:8px 15px;border-radius:999px;background:var(--card2);color:var(--sub);
+       border:1px solid var(--line);font-size:12.5px;cursor:pointer;transition:all .15s;font-weight:500}
+  .idx:hover{border-color:var(--acc);color:var(--ink)}
+  .idx.active{background:var(--ink);color:#fff;border-color:var(--ink)}
+
+  .wrap{flex:1;display:flex;min-height:0;gap:0}
+
+  /* 左侧列表 */
+  aside{width:350px;min-width:350px;background:var(--card);border-right:1px solid var(--line);
+        display:flex;flex-direction:column}
+  .search{padding:12px;border-bottom:1px solid var(--line)}
+  .search input{width:100%;padding:10px 14px;border-radius:10px;border:1px solid var(--line);
+        background:var(--card2);color:var(--ink);outline:none;font-size:13.5px}
+  .search input:focus{border-color:var(--acc);box-shadow:0 0 0 3px var(--acc-soft)}
+  .tabs{display:flex;gap:6px;padding:12px;padding-bottom:6px}
+  .tab{flex:1;padding:7px 0;text-align:center;border-radius:9px;background:var(--card2);
+       color:var(--sub);font-size:12.5px;cursor:pointer;border:1px solid var(--line);font-weight:500}
+  .tab.active{background:var(--ink);color:#fff;border-color:var(--ink)}
+  .list{flex:1;overflow-y:auto;padding:6px}
+  .row{display:grid;grid-template-columns:30px 40px 1fr 74px;gap:10px;padding:10px 12px;
+       border-radius:10px;cursor:pointer;align-items:center;transition:background .1s}
+  .row:hover{background:var(--card2)}
+  .row.active{background:var(--acc-soft);box-shadow:inset 0 0 0 1px var(--acc)}
+  .rank{color:var(--faint);font-size:12px;text-align:center;font-weight:500}
+  .logo{width:36px;height:36px;border-radius:8px;object-fit:contain;background:var(--card2);
+        border:1px solid var(--line);padding:2px}
+  .logo.fallback{display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;color:var(--acc)}
+  .sym{font-weight:600;font-size:13.5px;min-width:0;line-height:1.25}
+  .sym small{display:block;color:var(--sub);font-weight:400;font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .mcap{font-size:11.5px;color:var(--sub);text-align:right}
+  .mcap b{color:var(--ink);font-weight:600;display:block}
+  .empty{color:var(--sub);text-align:center;padding:40px;font-size:13px}
+  .check{grid-column:1;grid-row:1;font-size:15px;text-align:center;color:var(--acc)}
+  .rank-panel{flex:1;min-height:0;overflow-y:auto;padding:10px;display:flex;flex-direction:column}
+  #rankchart{flex:1;min-height:240px;width:100%}
+  .idx-overlay{display:flex;align-items:center;gap:8px;width:100%;flex-wrap:wrap;margin-top:6px}
+  .idx-overlay .hint{font-size:11.5px;color:var(--sub)}
+
+  /* 右侧图表 */
+  main{flex:1;display:flex;flex-direction:column;min-width:0;background:var(--bg)}
+  .chart-head{padding:16px 22px 10px;display:flex;align-items:flex-start;gap:14px;flex-wrap:wrap}
+  .chart-top{display:flex;align-items:center;gap:10px;min-width:0;width:100%}
+  .mode-tabs{display:flex;gap:6px;background:var(--card2);padding:4px;border-radius:10px;border:1px solid var(--line)}
+  .mode-tab{padding:7px 16px;border-radius:7px;font-size:12.5px;cursor:pointer;color:var(--sub);font-weight:500}
+  .mode-tab.active{background:var(--card);color:var(--ink);box-shadow:var(--shadow)}
+  .c-title{font-size:16px;font-weight:600;min-width:0}
+  .c-title small{display:block;color:var(--sub);font-weight:400;font-size:11.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .back{display:none;width:34px;height:34px;border-radius:9px;background:var(--card2);border:1px solid var(--line);
+        color:var(--ink);font-size:20px;cursor:pointer;align-items:center;justify-content:center}
+  .ranges{display:flex;gap:6px;flex-wrap:wrap;margin-left:auto;align-items:center}
+  .range{padding:7px 14px;border-radius:9px;background:var(--card2);color:var(--sub);
+         border:1px solid var(--line);font-size:12px;cursor:pointer;font-weight:500;transition:all .12s}
+  .range:hover{border-color:var(--acc);color:var(--ink)}
+  .range.active{background:var(--ink);color:#fff;border-color:var(--ink)}
+  .chip-row{display:flex;flex-wrap:wrap;gap:6px;width:100%;align-items:center}
+  .chip{display:inline-flex;align-items:center;gap:6px;padding:5px 8px 5px 5px;border-radius:999px;
+        background:var(--card);border:1px solid var(--line);font-size:12px;font-weight:500}
+  .chip img{width:20px;height:20px;border-radius:50%;object-fit:contain;background:var(--card2)}
+  .chip .x{cursor:pointer;color:var(--faint);font-size:13px;line-height:1}
+  .chip .x:hover{color:var(--acc)}
+  .hint{color:var(--faint);font-size:11.5px}
+  .chart{flex:1;min-height:0;padding:0 20px 16px}
+  #kline{width:100%;height:100%}
+
+  /* 移动端 */
+  @media (max-width:768px){
+    body{height:100dvh}
+    header{padding:10px 14px;gap:10px}
+    .brand h1{font-size:16px}
+    .brand .logo-mark{width:32px;height:32px;font-size:16px}
+    .idxbar{margin-left:0;width:100%;overflow-x:auto;flex-wrap:nowrap;-webkit-overflow-scrolling:touch}
+    .idx{flex:0 0 auto;padding:6px 12px;font-size:12px}
+    .wrap{flex-direction:column}
+    aside{width:100%;min-width:0;flex:1}
+    main{flex:1;display:none}
+    .chart-head{flex-direction:column;align-items:flex-start;gap:8px;padding:10px 14px}
+    .ranges{margin-left:0;width:100%;overflow-x:auto;flex-wrap:nowrap;justify-content:flex-start;-webkit-overflow-scrolling:touch}
+    .range{flex:0 0 auto;padding:6px 12px;font-size:11.5px}
+    .back{display:inline-flex}
+    body.chart-open aside{display:none}
+    body.chart-open main{display:flex}
+    /* 列表行更紧凑: 隐藏市值列, 缩logo/间距, 给 symbol 更多空间 */
+    .row{grid-template-columns:26px 34px 1fr;gap:8px;padding:8px 10px}
+    .row .mcap{display:none}
+    .logo{width:32px;height:32px;border-radius:7px}
+    .sym{font-size:13px}
+    .sym small{font-size:10.5px}
+    .search{padding:10px}
+    .search input{padding:9px 12px;font-size:13px}
+    .tab{padding:6px 0;font-size:12px}
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <div class="logo-mark serif">▲</div>
+    <h1 class="serif">美股 <span>Top100</span> 历史报表<small>行情数据 · Yahoo Finance · 日线</small></h1>
+  </div>
+  <div class="idxbar" id="idxbar"></div>
+</header>
+<div class="wrap">
+  <aside>
+    <div class="search"><input id="q" placeholder="搜索代码或名称…" autocomplete="off"></div>
+    <div class="tabs">
+      <div class="tab active" data-sort="rank">市值排序</div>
+      <div class="tab" data-sort="name">名称排序</div>
+      <div class="tab" data-sort="mover">涨跌排行</div>
+    </div>
+    <div class="rank-panel" id="rankpanel" style="display:none"><div id="rankchart"></div></div>
+    <div class="list" id="list"></div>
+  </aside>
+  <main>
+    <div class="chart-head">
+      <div class="chart-top">
+        <div class="mode-tabs" id="modetabs">
+          <div class="mode-tab active" data-mode="kline">K线</div>
+          <div class="mode-tab" data-mode="compare">对比</div>
+        </div>
+        <div class="mode-tabs" id="ind-tabs" style="display:none">
+          <div class="mode-tab active" data-ind="ma">均线</div>
+          <div class="mode-tab" data-ind="macd">MACD</div>
+          <div class="mode-tab" data-ind="rsi">RSI</div>
+          <div class="mode-tab" data-ind="boll">布林</div>
+        </div>
+        <div class="back" id="back" title="返回列表">‹</div>
+        <div class="c-title" id="ctitle">选择一家公司<small>点击左侧列表查看历史K线</small></div>
+        <div class="ranges" id="ranges">
+          <div class="range active" data-r="1mo">1月</div>
+          <div class="range" data-r="3mo">3月</div>
+          <div class="range" data-r="6mo">6月</div>
+          <div class="range" data-r="1y">1年</div>
+          <div class="range" data-r="2y">2年</div>
+          <div class="range" data-r="5y">5年</div>
+          <div class="range" data-r="max">全部</div>
+        </div>
+        <div class="mode-tabs" id="per-tabs" style="display:none">
+          <div class="mode-tab active" data-per="1d">日</div>
+          <div class="mode-tab" data-per="1wk">周</div>
+          <div class="mode-tab" data-per="1mo">月</div>
+        </div>
+      </div>
+      <div class="chip-row" id="chiprow" style="display:none"></div>
+      <div class="idx-overlay" id="idxoverlay" style="display:none">
+        <span class="hint">叠加大盘:</span>
+        <span class="range idx" data-ix="^GSPC" data-ov="1">标普500</span>
+        <span class="range idx" data-ix="^NDX" data-ov="1">纳指</span>
+        <span class="range idx" data-ix="^DJI" data-ov="1">道指</span>
+        <span class="range idx" data-ix="off" data-ov="0">不叠加</span>
+      </div>
+    </div>
+    <div class="chart"><div id="kline"></div></div>
+  </main>
+</div>
+<script src="/static/app.js"></script>
+</body>
+</html>
