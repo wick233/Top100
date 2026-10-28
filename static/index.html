@@ -49,6 +49,13 @@
        color:var(--sub);font-size:12.5px;cursor:pointer;border:1px solid var(--line);font-weight:500}
   .tab.active{background:var(--ink);color:#fff;border-color:var(--ink)}
   .list{flex:1;overflow-y:auto;padding:6px}
+  .selectionbar{display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid var(--line);font-size:12px;color:var(--sub)}
+  .selectionbar button{padding:6px 10px;border:1px solid var(--line);border-radius:8px;background:var(--card2);color:var(--ink);cursor:pointer;pointer-events:auto;touch-action:manipulation;position:relative;z-index:2}
+  .selectionbar button#selectMode{margin-left:auto}
+  .selectionbar button.primary{background:var(--ink);color:#fff;border-color:var(--ink)}
+  .selectionbar button.primary:not(.ready){opacity:.5}
+  .selectionbar button.primary.ready{background:var(--acc);border-color:var(--acc)}
+  .selectionbar button:disabled{opacity:.45;cursor:not-allowed}
   .row{display:grid;grid-template-columns:30px 40px 1fr 74px;gap:10px;padding:10px 12px;
        border-radius:10px;cursor:pointer;align-items:center;transition:background .1s}
   .row:hover{background:var(--card2)}
@@ -67,6 +74,8 @@
   #rankchart{flex:1;min-height:240px;width:100%}
   .idx-overlay{display:flex;align-items:center;gap:8px;width:100%;flex-wrap:wrap;margin-top:6px}
   .idx-overlay .hint{font-size:11.5px;color:var(--sub)}
+  body.index-history-open aside{display:none}
+  body.index-history-open main{width:100%}
 
   /* 右侧图表 */
   main{flex:1;display:flex;flex-direction:column;min-width:0;background:var(--bg)}
@@ -91,8 +100,37 @@
   .chip .x{cursor:pointer;color:var(--faint);font-size:13px;line-height:1}
   .chip .x:hover{color:var(--acc)}
   .hint{color:var(--faint);font-size:11.5px}
-  .chart{flex:1;min-height:0;padding:0 20px 16px}
-  #kline{width:100%;height:100%}
+  .chart{display:flex;flex:1;min-height:420px;padding:0 20px 16px}
+  #kline{width:100%;height:100%;min-height:400px}
+  .index-report{display:none;flex:1;min-height:0;margin:0 22px 24px;background:var(--card);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);overflow:auto}
+  .index-report h2{font-size:15px;padding:14px 16px;border-bottom:1px solid var(--line)}
+  .index-report table{width:100%;border-collapse:collapse;font-size:12px;white-space:nowrap}
+  .index-report th,.index-report td{padding:9px 14px;border-bottom:1px solid var(--line);text-align:right}
+  .index-report th:first-child,.index-report td:first-child{text-align:left}
+  #indexInline{display:none;flex:1;min-height:0;overflow:auto;padding:0 22px 24px}
+  #indexInline .chart{display:block;min-height:0;padding:12px;background:var(--card);border:1px solid var(--line);border-radius:12px}
+  .fundamentals{display:flex;flex-direction:column;flex:1;min-height:0;overflow:auto;padding:8px 22px 24px}
+  .metric-grid{display:grid;grid-template-columns:repeat(4,minmax(120px,1fr));gap:10px;margin-bottom:18px;flex:0 0 auto}
+  .metric-card,.report-card{background:var(--card);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow)}
+  .metric-card{padding:13px}.metric-card small{display:block;color:var(--sub);font-size:11px;margin-bottom:4px}
+  .metric-card b{font-size:17px}.report-card{padding:14px;margin-bottom:12px;overflow:auto;flex:0 0 auto}
+  .report-card h3{font-size:14px;margin-bottom:10px}.report-table{width:100%;border-collapse:collapse;font-size:12px;white-space:nowrap;table-layout:fixed;min-width:720px}
+  .report-table th,.report-table td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:right;overflow-wrap:break-word}
+  .report-table th:first-child,.report-table td:first-child{text-align:left}
+  .comparison-shell{background:var(--card);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);overflow:hidden;flex:0 0 auto}
+  .comparison-title{display:flex;align-items:center;padding:14px 16px;border-bottom:1px solid var(--line)}
+  .comparison-title b{font-size:14px}.comparison-title small{display:block;color:var(--sub);font-size:11px;margin-top:3px}
+  .comparison-grid{display:grid;min-width:max-content;overflow:visible}
+  .comparison-shell{overflow-x:auto;scroll-snap-type:x proximity;-webkit-overflow-scrolling:touch}
+  .comparison-company,.comparison-corner,.comparison-label,.comparison-value{padding:11px 12px;border-right:1px solid var(--line);border-bottom:1px solid var(--line);min-width:0}
+  .comparison-company{display:grid;grid-template-columns:32px 1fr;column-gap:8px;align-items:center;scroll-snap-align:start;background:var(--card)}
+  .comparison-company img{width:32px;height:32px;grid-row:1/3;border-radius:8px;object-fit:contain;background:var(--card2);padding:2px}
+  .comparison-company b{font-size:13px}.comparison-company small{font-size:10.5px;color:var(--sub);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .comparison-corner,.comparison-label{position:sticky;left:0;z-index:2;background:var(--card2);font-weight:600}
+  .comparison-corner{z-index:3;display:flex;align-items:center;color:var(--sub)}
+  .comparison-label{font-size:12px;color:var(--sub)}
+  .comparison-value{text-align:right;font-weight:600;font-size:13px;background:var(--card)}
+  .comparison-section{padding:7px 12px;background:var(--acc-soft);color:var(--acc);font-size:11px;font-weight:700;border-bottom:1px solid var(--line)}
 
   /* 移动端 */
   @media (max-width:768px){
@@ -113,6 +151,10 @@
     body.chart-open main{display:flex}
     /* 列表行更紧凑: 隐藏市值列, 缩logo/间距, 给 symbol 更多空间 */
     .row{grid-template-columns:26px 34px 1fr;gap:8px;padding:8px 10px}
+    .fundamentals{min-height:0;overflow:auto;padding:8px 12px 20px}
+    .metric-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+    .metric-card{min-width:0;padding:10px}.metric-card b{font-size:14px}
+    .report-card{overflow-x:auto;padding:10px}
     .row .mcap{display:none}
     .logo{width:32px;height:32px;border-radius:7px}
     .sym{font-size:13px}
@@ -120,6 +162,10 @@
     .search{padding:10px}
     .search input{padding:9px 12px;font-size:13px}
     .tab{padding:6px 0;font-size:12px}
+    .metric-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+    .fundamentals{padding:8px 12px 20px}
+    .chart-top{flex-wrap:wrap}
+    .c-title{order:3;width:100%}
   }
 </style>
 </head>
@@ -129,7 +175,7 @@
     <div class="logo-mark serif">▲</div>
     <h1 class="serif">美股 <span>Top100</span> 历史报表<small>行情数据 · Yahoo Finance · 日线</small></h1>
   </div>
-  <div class="idxbar" id="idxbar"></div>
+  <div class="idxbar" id="idxbar"><a class="idx" data-ix="top100" href="/">市值 Top100</a><a class="idx" data-ix="sp500" href="/report/sp500?range=1mo&interval=1d">标普500</a><a class="idx" data-ix="ndx100" href="/report/ndx100?range=1mo&interval=1d">纳指100</a></div>
 </header>
 <div class="wrap">
   <aside>
@@ -139,6 +185,7 @@
       <div class="tab" data-sort="name">名称排序</div>
       <div class="tab" data-sort="mover">涨跌排行</div>
     </div>
+    <div class="selectionbar" id="selectionbar"><span id="selectionHint">单击公司查看详情</span><button type="button" id="selectMode">多选对比</button><button type="button" id="confirmSelection" class="primary">确定</button></div>
     <div class="rank-panel" id="rankpanel" style="display:none"><div id="rankchart"></div></div>
     <div class="list" id="list"></div>
   </aside>
@@ -148,8 +195,9 @@
         <div class="mode-tabs" id="modetabs">
           <div class="mode-tab active" data-mode="kline">K线</div>
           <div class="mode-tab" data-mode="compare">对比</div>
+          <div class="mode-tab" data-mode="fundamentals">基本面</div>
         </div>
-        <div class="mode-tabs" id="ind-tabs" style="display:none">
+        <div class="mode-tabs" id="ind-tabs">
           <div class="mode-tab active" data-ind="ma">均线</div>
           <div class="mode-tab" data-ind="macd">MACD</div>
           <div class="mode-tab" data-ind="rsi">RSI</div>
@@ -166,7 +214,7 @@
           <div class="range" data-r="5y">5年</div>
           <div class="range" data-r="max">全部</div>
         </div>
-        <div class="mode-tabs" id="per-tabs" style="display:none">
+        <div class="mode-tabs" id="per-tabs">
           <div class="mode-tab active" data-per="1d">日</div>
           <div class="mode-tab" data-per="1wk">周</div>
           <div class="mode-tab" data-per="1mo">月</div>
@@ -181,9 +229,62 @@
         <span class="range idx" data-ix="off" data-ov="0">不叠加</span>
       </div>
     </div>
-    <div class="chart"><div id="kline"></div></div>
+    <div class="chart" id="chartwrap"><div id="kline"></div></div>
+    <div class="index-report" id="indexReport"></div>
+    <div id="indexInline"></div>
+    <div class="fundamentals" id="fundamentals" style="display:none"></div>
   </main>
 </div>
-<script src="/static/app.js"></script>
+<script src="/static/app.js?v=20260919-37"></script>
+<script>
+/* 指数报表的独立兜底渲染：不依赖 ECharts 或主应用状态。 */
+(() => {
+  const esc = v => String(v ?? "").replace(/[&<>\"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+  const price = v => Number(v).toLocaleString("en-US", {minimumFractionDigits: 2, maximumFractionDigits: 2});
+  const volume = v => Number(v) >= 1e9 ? (Number(v)/1e9).toFixed(2)+"B" : Number(v).toLocaleString("en-US");
+  async function show(id) {
+    const box = document.getElementById("indexReport"), inline = document.getElementById("indexInline");
+    if (!box || !inline) return;
+    document.body.classList.add("index-history-open");
+    document.querySelectorAll("#idxbar .idx").forEach(x => x.classList.toggle("active", x.dataset.ix === id));
+    document.getElementById("list")?.style.setProperty("display", "none");
+    document.getElementById("chartwrap")?.style.setProperty("display", "none");
+    document.getElementById("fundamentals")?.style.setProperty("display", "none");
+    box.style.display = "none";
+    const range = document.querySelector("#ranges .range.active")?.dataset.r || "1mo";
+    const interval = document.querySelector("#per-tabs .mode-tab.active")?.dataset.per || "1d";
+    inline.style.display = "block";
+    inline.innerHTML = '<div class="empty">正在加载指数图表…</div>';
+    try {
+      const response = await fetch(`/api/index-history/${id}?range=${range}&interval=${interval}`);
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const d = await response.json();
+      inline.innerHTML = '<div class="chart" style="display:block;min-height:480px"><div id="indexInlineChart" style="width:100%;height:460px"></div></div>';
+      if (typeof echarts === 'undefined') throw new Error('ECharts 加载失败');
+      const dates = d.bars.map(x => x[0]);
+      const candles = d.bars.map(x => [x[1], x[2], x[3], x[4]]);
+      const volumes = d.bars.map(x => x[5]);
+      const indexChart = echarts.init(document.getElementById('indexInlineChart'));
+      indexChart.setOption({
+        animation: false,
+        tooltip: { trigger: 'axis' },
+        legend: { data: ['K线', '成交量'], top: 0 },
+        grid: [{ left: 60, right: 20, top: 35, height: '58%' }, { left: 60, right: 20, top: '76%', height: '15%' }],
+        xAxis: [{ type: 'category', data: dates, boundaryGap: true }, { type: 'category', gridIndex: 1, data: dates }],
+        yAxis: [{ scale: true }, { gridIndex: 1, scale: true }],
+        dataZoom: [{ type: 'inside', xAxisIndex: [0, 1] }, { type: 'slider', xAxisIndex: [0, 1], bottom: 8 }],
+        series: [
+          { name: 'K线', type: 'candlestick', itemStyle: { color: '#2e7d32', color0: '#c62828', borderColor: '#2e7d32', borderColor0: '#c62828' }, data: candles },
+          { name: '成交量', type: 'bar', xAxisIndex: 1, yAxisIndex: 1, data: volumes }
+        ]
+      });
+      window.addEventListener('resize', () => indexChart.resize());
+    } catch (e) {
+      inline.innerHTML = `<div class="empty">指数图表加载失败：${esc(e.message)}</div>`;
+    }
+  }
+  window.showIndexReportFallback = show;
+})();
+</script>
 </body>
 </html>

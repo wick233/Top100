@@ -1,6 +1,6 @@
 # 美股 Top100 历史K线报表
 
-一个用于查看 **美股市值 Top100 公司历史行情** 的可视化报表项目。后端拉取 Yahoo Finance 日线K线数据，前端用 ECharts 渲染蜡烛图（K线）并支持时间范围切换、成交量、均线，且适配移动端。
+一个用于查看 **美股市值 Top100、标普500与纳指100** 行情和基本面的可视化报表项目。后端拉取 Yahoo Finance 数据并持久化到 SQLite，前端用 ECharts 展示 K 线、技术指标及多公司对比，且适配移动端。
 
 数据源：Yahoo Finance（通过 `yfinance`）
 技术栈：Python + FastAPI + Uvicorn · 前端原生 HTML/CSS/JS + ECharts 5
@@ -33,6 +33,9 @@
 ├── top100.py        # 市值 Top100 公司清单 (ticker, 名称, 市值/十亿美元, 行业)
 ├── indices.py       # 标普500/纳指100 成分股抓取(带缓存)与内置回退清单
 ├── store.py         # SQLite 历史K线落盘与导出(CSV/JSON)
+├── fundamentals.py  # 估值、年度财报、分红抓取与SQLite缓存
+├── market.db        # SQLite长期数据文件（运行时自动创建/更新）
+├── tests/           # 接口、SQLite和前端契约测试
 ├── start.sh         # 启动脚本（可传端口参数，默认 8000）
 ├── README.md        # 项目说明文档
 ├── shots/           # 无头浏览器渲染截图（用于视觉检查）
@@ -90,6 +93,9 @@ cd /root/project/Top100
 ### `GET /api/quote/{ticker}`
 返回某公司实时市值（十亿美元）。失败时回退为内置值。
 
+### `GET /api/fundamentals/{ticker}`
+返回公司估值、年度财报与分红历史。包括市盈率、市净率、EPS、股息率、派息率、Beta、52周高低点，以及最近年度的营收、净利润、EBITDA、自由现金流、总资产和总负债。结果写入 SQLite 并缓存24小时；传 `refresh=true` 可强制刷新。
+
 ### `GET /api/compare?symbols=AAPL,MSFT,NVDA&range=6mo`
 多公司收盘价对比，`symbols` 逗号分隔（最多 15 家），`range` 同 K 线接口。返回各公司按日期（毫秒时间戳）的收盘序列。
 
@@ -100,10 +106,10 @@ cd /root/project/Top100
 }}
 ```
 
-### `GET /api/stock/{ticker}?range=1mo`
-返回某公司指定时间范围的日线K线（OHLCV）。
+### `GET /api/stock/{ticker}?range=1mo&interval=1d`
+返回某公司指定时间范围和周期的K线（OHLCV）。
 
-`range` 取值：`1mo` `3mo` `6mo` `1y` `2y` `5y` `max`
+`range` 取值：`1mo` `3mo` `6mo` `1y` `2y` `5y` `max`；`interval` 取值：`1d` `1wk` `1mo`。
 
 ```json
 {
@@ -114,6 +120,9 @@ cd /root/project/Top100
 ```
 
 > bars 每项格式：`[日期, 开, 收, 低, 高, 量]`
+
+### `GET /api/export/{ticker}?range=1y&fmt=csv`
+将 SQLite 中的历史行情导出为 CSV 或 JSON；`fmt` 取值 `csv` / `json`。
 
 ---
 
@@ -133,15 +142,28 @@ cd /root/project/Top100
 ```bash
 cd /root/project/Top100
 python3 -m venv .venv
-.venv/bin/pip install yfinance fastapi "uvicorn[standard]"
+.venv/bin/pip install yfinance fastapi "uvicorn[standard]" requests beautifulsoup4 lxml pytest httpx
 ```
 
 ---
 
-## 可扩展方向
+## 测试验证
 
-- 接入更多数据维度（财报、市盈率、分红等）。
-- 增加多公司同屏对比图。
-- 图表加布林带、RSI、MACD 等技术指标。
-- 后端加 SQLite/Redis 做长期数据落盘。
+```bash
+cd /root/project/Top100
+.venv/bin/pytest -q
+node --check static/app.js
+.venv/bin/python -m py_compile server.py store.py fundamentals.py indices.py top100.py
+```
+
+SQLite 文件为 `market.db`，当前包含：
+
+- `bars`：按股票、周期和日期保存 OHLCV，主键防止重复。
+- `meta`：行情数据最后更新时间。
+- `fundamentals_cache`：基本面、财报和分红 JSON 缓存。
+
+## 后续可扩展方向
+
+- 增加季度财报与同比/环比增长率。
+- 将多公司对比切换为“归一化涨跌幅”模式，避免不同股价量级影响直观比较。
 - 通过 nginx 反代绑定域名，并用 systemd 守护开机自启。

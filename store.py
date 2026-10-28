@@ -5,8 +5,9 @@
 """
 import os
 import sqlite3
+import threading
 import time
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 
 import yfinance as yf
 
@@ -14,6 +15,7 @@ DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "market.db")
 FRESH_SECONDS = 6 * 3600  # 库里数据 6 小时内视为新鲜
 
 _conn = None
+_db_lock = threading.RLock()
 
 
 def _get_conn():
@@ -29,6 +31,12 @@ def _get_conn():
             "CREATE TABLE IF NOT EXISTS meta("
             "ticker TEXT, interval TEXT, updated_at REAL, "
             "PRIMARY KEY(ticker, interval))")
+        version = _conn.execute("PRAGMA user_version").fetchone()[0]
+        if version < 1:
+            # 旧版将标准行(date,open,close,low,high,volume)直接写入
+            # (date,open,high,low,close,volume)列，导致 high/close 对调。
+            _conn.execute("UPDATE bars SET high=close, close=high")
+            _conn.execute("PRAGMA user_version=1")
         _conn.commit()
     return _conn
 
@@ -70,7 +78,7 @@ def _save_rows(ticker, interval, rows):
     conn.executemany(
         "INSERT OR REPLACE INTO bars(ticker, interval, date, open, high, low, close, volume) "
         "VALUES(?,?,?,?,?,?,?,?)",
-        [(ticker, interval, r[0], r[1], r[2], r[3], r[4], r[5]) for r in rows])
+        [(ticker, interval, r[0], r[1], r[4], r[3], r[2], r[5]) for r in rows])
     conn.commit()
 
 
@@ -116,24 +124,46 @@ def _has_coverage(ticker, interval, cover_start):
     return row[0] <= cover_start
 
 
-def get_bars(ticker, interval, period, start=None, end=None):
+def _latest_date(ticker, interval):
+    conn = _get_conn()
+    row = conn.execute(
+        "SELECT MAX(date) FROM bars WHERE ticker=? AND interval=?",
+        (ticker, interval)).fetchone()
+    return row[0] if row else None
+
+
+def _last_weekday():
+    current = date.today()
+    while current.weekday() >= 5:
+        current -= timedelta(days=1)
+    return current.strftime("%Y-%m-%d")
+
+
+def get_bars(ticker, interval, period, start=None, end=None, now_date=None):
     """返回 [{date, open, close, low, high, volume}, ...] 升序。
     优先读库；库数据不覆盖所请求的 period 才重新抓取补齐。"""
-    # 缓存(DB)是否覆盖到该周期：是则直接切片返回，否才抓取
-    if _has_coverage(ticker, interval, _cover_start(period)):
-        rows = _load_rows(ticker, interval, start, end)
-        if rows:
-            return _rows_to_dicts(rows)
-    # 抓取该周期数据并入库（INSERT OR REPLACE，会补全历史）
-    new_rows = _fetch_yahoo(ticker, interval, period)
-    if new_rows:
-        _save_rows(ticker, interval, new_rows)
-    # 无论抓取成功与否,都从库读(抓取失败则返回库里已有历史)
-    return _rows_to_dicts(_load_rows(ticker, interval, start, end))
+    if start is None and period != "max":
+        base = datetime.strptime(now_date, "%Y-%m-%d").replace(tzinfo=timezone.utc) if now_date else datetime.now(timezone.utc)
+        start = (base - timedelta(days=_RANGE_DAYS.get(period, 95))).strftime("%Y-%m-%d")
+    cover_start = start or "1900-01-01"
+    with _db_lock:
+        covered = _has_coverage(ticker, interval, cover_start)
+        latest = _latest_date(ticker, interval)
+        fresh = _is_fresh(ticker, interval)
+        # 日线数据已经到最近工作日时，历史行情直接使用本地库；
+        # 只有缺少最近交易日时才访问 Yahoo，并且只补最近几天。
+        current_daily = interval == "1d" and latest and latest >= _last_weekday()
+        if not (covered and (fresh or current_daily)):
+            fetch_period = "5d" if covered and latest else period
+            new_rows = _fetch_yahoo(ticker, interval, fetch_period)
+            if new_rows:
+                _save_rows(ticker, interval, new_rows)
+                _mark_fresh(ticker, interval)
+        return _rows_to_dicts(_load_rows(ticker, interval, start, end))
 
 
 def _rows_to_dicts(rows):
-    return [{"date": r[0], "open": r[1], "close": r[2], "low": r[3], "high": r[4], "volume": r[5]}
+    return [{"date": r[0], "open": r[1], "close": r[4], "low": r[3], "high": r[2], "volume": r[5]}
             for r in rows]
 
 
