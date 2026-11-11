@@ -111,6 +111,7 @@ def get_fundamentals(ticker, force=False):
         "name": info.get("longName") or info.get("shortName") or ticker,
         "sector": info.get("sector"),
         "industry": info.get("industry"),
+        "business_summary": info.get("longBusinessSummary") or info.get("description"),
         "currency": info.get("currency") or "USD",
         "metrics": {
             "market_cap": _finite(info.get("marketCap")),

@@ -82,7 +82,14 @@ def _save_rows(ticker, interval, rows):
     conn.commit()
 
 
+def _yahoo_ticker(ticker):
+    """将页面/指数中的证券代码转换为 Yahoo Finance 代码。"""
+    # Yahoo 用连字符表示同公司不同类别股票，指数清单则使用点号。
+    return ticker.replace(".B", "-B").replace(".A", "-A")
+
+
 def _fetch_yahoo(ticker, interval, period):
+    ticker = _yahoo_ticker(ticker)
     """从 yahoo 拉取并返回标准行 list。"""
     df = yf.Ticker(ticker).history(period=period, interval=interval,
                                    auto_adjust=False, raise_errors=True)
@@ -103,7 +110,7 @@ def _fetch_yahoo(ticker, interval, period):
 
 # range → 需要回溯多少天，用于判断库里数据是否覆盖到该周期
 _RANGE_DAYS = {
-    "1mo": 31, "3mo": 95, "6mo": 185, "1y": 370,
+    "1wk": 10, "1mo": 31, "3mo": 95, "6mo": 185, "1y": 370,
     "2y": 740, "5y": 1850, "max": 3650,
 }
 
@@ -150,12 +157,19 @@ def get_bars(ticker, interval, period, start=None, end=None, now_date=None):
         covered = _has_coverage(ticker, interval, cover_start)
         latest = _latest_date(ticker, interval)
         fresh = _is_fresh(ticker, interval)
+        existing = _load_rows(ticker, interval, start, end)
+        expected = 3 if period == "1wk" else max(5, int(_RANGE_DAYS.get(period, 95) * 0.45))
+        incomplete = len(existing) < expected
         # 日线数据已经到最近工作日时，历史行情直接使用本地库；
         # 只有缺少最近交易日时才访问 Yahoo，并且只补最近几天。
         current_daily = interval == "1d" and latest and latest >= _last_weekday()
-        if not (covered and (fresh or current_daily)):
-            fetch_period = "5d" if covered and latest else period
-            new_rows = _fetch_yahoo(ticker, interval, fetch_period)
+        if incomplete or not (covered and (fresh or current_daily)):
+            fetch_period = period if incomplete else ("5d" if covered and latest else period)
+            try:
+                new_rows = _fetch_yahoo(ticker, interval, fetch_period)
+            except Exception:
+                # Yahoo 临时限流/超时不能让已有历史行情变成 502。
+                new_rows = []
             if new_rows:
                 _save_rows(ticker, interval, new_rows)
                 _mark_fresh(ticker, interval)
